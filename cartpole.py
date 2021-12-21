@@ -62,8 +62,10 @@ for episode in range(5):
             print("Episode finished after {} timesteps".format(t+1))
             episode_finish_times = np.append(episode_finish_times,t+1)
             plt.plot(range(t+1), actions)
+            plt.title("Force applied over timesteps t")
+            plt.xlabel('t')
+            plt.ylabel('Applied Force')
             plt.show()
-
             break
 
 print("Average finish time: ", np.mean(episode_finish_times))
