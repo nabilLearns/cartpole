@@ -61,30 +61,33 @@ def loss_fcn(y, Q):
     return nn.functional.mse_loss(y, Q)#.mean()
 
 predict = lambda x: torch.argmax(nn.functional.softmax(x,dim=0))
-opt = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+opt = torch.optim.RMSprop(model.parameters(),lr=0.001)
 
 def update_weights(X, Y):
     '''
     input: nparray of indices of replay memory D to use as training samples
     This updates Q Network parameters via gradient descent step
     '''
-    #opt.zero_grad()
+    opt.zero_grad()
     loss = loss_fcn(X, Y)
     loss.backward()
     opt.step()
 
 #modularize this -> getting observations
-M = 10
+M = 150
 T = 500
+D = [] # should be pooled over many episodes
 model = QNet()
 for episode in range(M):
-    D = []
+    if episode > 0 and episode % 20 == 0:
+        print("Episode {}:".format(episode), np.mean(episode_finish_times[-20:-1]))
     observation = env.reset()
+    epsilon = 1
     #print(type(observation))
     #print(observation)
-    target = np.array([0, 0, 0, 0]) # target = np.array([0.6, 0]) for MountainCar-v0, this line not relevant to Q learning
-    errors = [observation - target] # this line not relevant to Q learning
-    actions = [] # this line not relevant to Q Learning
+    #target = np.array([0, 0, 0, 0]) # target = np.array([0.6, 0]) for MountainCar-v0, this line not relevant to Q learning
+    #errors = [observation - target] # this line not relevant to Q learning
+    #actions = [] # this line not relevant to Q Learning
     for t in range(T):
         env.render()
         #print("Prediction: ", model(observation), model(observation).shape)
@@ -100,7 +103,7 @@ for episode in range(M):
 
         #Q-Learning
         experience = [observation]
-        epsilon = 0.3
+        epsilon = max(epsilon*0.995, 0.05)
         action_type = np.random.choice([0,1],p=[epsilon,1-epsilon])
         if action_type == 0:
             # do random action
@@ -116,10 +119,10 @@ for episode in range(M):
         D.append(experience)
         #print("Experience Replay: ", D, D[0][0])
 
-        batch_size = 5
-        gamma = 0.01
+        batch_size = 32
+        gamma = 0.9
         train_indices = np.random.choice(np.arange(len(D)),size=batch_size)
-        print(train_indices, len(D))
+        #print(train_indices, len(D))
 
         '''
         Debugging Q_values
@@ -146,6 +149,7 @@ for episode in range(M):
         if done:
             #print("Episode finished after {} timesteps".format(t+1))
             episode_finish_times = np.append(episode_finish_times,t+1)
+            #print(t+1)
             #plt.plot(range(t+1), actions)
             #plt.title("Force applied over timesteps t")
             #plt.xlabel('t')
@@ -155,4 +159,8 @@ for episode in range(M):
 
 print("Average finish time: ", np.mean(episode_finish_times))
 print(episode_finish_times)
+plt.plot(episode_finish_times[::10])
+plt.xlabel("Episode #")
+plt.ylabel("Timesteps to termination")
+plt.show()
 env.close()
